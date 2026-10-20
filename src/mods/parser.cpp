@@ -1,8 +1,16 @@
 #include "parser.hpp"
+#include "macros.hpp"
 #include <algorithm>
 #include <cstddef>
 #include <iostream>
 #include <vector>
+
+namespace Values {
+
+Integer::Integer(int _content) : content(_content) {}
+Symbol::Symbol(std::string &&_content) : content(_content) {}
+
+} // namespace Values
 
 enum ParsingState { Idle, Integer, Symbol };
 
@@ -12,6 +20,8 @@ const std::array<int, 10> NUMBER_CHARS{'0', '1', '2', '3', '4',
 const char SPACE = ' ';
 const char NEW_LINE = '\n';
 
+void print_literals(std::vector<Values::Literal> &literals) {}
+
 /// no support for utf8
 std::vector<Values::Literal> parse(std::string &input) {
     std::vector<Values::Literal> result;
@@ -19,6 +29,8 @@ std::vector<Values::Literal> parse(std::string &input) {
 
     Values::Integer cur_integer(0);
     Values::Symbol cur_symbol("");
+
+    input.push_back('\n');
 
     for (auto it = input.begin(); it < input.end(); ++it) {
         switch (state) {
@@ -32,10 +44,10 @@ std::vector<Values::Literal> parse(std::string &input) {
                 if (std::find(NUMBER_CHARS.begin(), NUMBER_CHARS.end(), *it) !=
                     NUMBER_CHARS.end()) {
                     state = ParsingState::Integer;
-                    cur_integer = Values::Integer(0);
+                    cur_integer = Values::Integer(*it - '0');
                 } else {
                     state = ParsingState::Symbol;
-                    cur_symbol = Values::Symbol("");
+                    cur_symbol = Values::Symbol(std::string{*it});
                 }
             }
 
