@@ -1,5 +1,6 @@
 #include "parser.hpp"
 #include "macros.hpp"
+#include "tokens.hpp"
 #include <algorithm>
 #include <cstddef>
 #include <iostream>
@@ -20,7 +21,21 @@ const std::array<int, 10> NUMBER_CHARS{'0', '1', '2', '3', '4',
 const char SPACE = ' ';
 const char NEW_LINE = '\n';
 
-void print_literals(std::vector<Values::Literal> &literals) {}
+void print_literals(std::vector<Values::Literal> &literals) {
+    for (size_t i = 0; i < literals.size(); ++i) {
+        std::visit(overloaded{
+                       [](Values::Integer &integer) {
+                           std::cout << "Number: " << integer.content
+                                     << std::endl;
+                       },
+                       [](Values::Symbol &symbol) {
+                           std::cout << "Symbol: " << symbol.content
+                                     << std::endl;
+                       },
+                   },
+                   literals[i]);
+    }
+}
 
 /// no support for utf8
 std::vector<Values::Literal> parse(std::string &input) {
@@ -32,30 +47,41 @@ std::vector<Values::Literal> parse(std::string &input) {
 
     input.push_back('\n');
 
-    for (auto it = input.begin(); it < input.end(); ++it) {
+    std::string::iterator it = input.begin();
+
+    while (it < input.end()) {
         switch (state) {
+
         case ParsingState::Idle:
             switch (*it) {
+
             case SPACE:
                 // ignore spaces
+                break;
+            case NEW_LINE:
                 break;
             default:
                 // number
                 if (std::find(NUMBER_CHARS.begin(), NUMBER_CHARS.end(), *it) !=
                     NUMBER_CHARS.end()) {
                     state = ParsingState::Integer;
-                    cur_integer = Values::Integer(*it - '0');
+
+                    it--;
                 } else {
                     state = ParsingState::Symbol;
-                    cur_symbol = Values::Symbol(std::string{*it});
+
+                    it--;
                 }
             }
+
+            it++;
 
             break;
         case ParsingState::Integer:
             if (*it == SPACE || *it == NEW_LINE) {
                 result.push_back(cur_integer);
                 state = ParsingState::Idle;
+                cur_integer.content = 0;
                 break;
             }
 
@@ -64,19 +90,46 @@ std::vector<Values::Literal> parse(std::string &input) {
                 char num = *it - '0';
                 cur_integer.content = cur_integer.content * 10 + (int)num;
             } else {
-                // TODO: do this
-                std::cerr << "Some number error" << std::endl;
+                result.push_back(cur_integer);
+                state = ParsingState::Idle;
+                cur_integer.content = 0;
+                break;
             }
+
+            it++;
 
             break;
         case ParsingState::Symbol:
             if (*it == SPACE || *it == NEW_LINE) {
                 result.push_back(cur_symbol);
                 state = ParsingState::Idle;
+                cur_symbol.content = "";
                 break;
             }
 
+            if (std::find(NUMBER_CHARS.begin(), NUMBER_CHARS.end(), *it) !=
+                NUMBER_CHARS.end()) {
+
+                result.push_back(cur_symbol);
+                state = ParsingState::Integer;
+                cur_symbol.content = "";
+
+                break;
+            }
+
+            auto possible_tokens = &tokens[cur_symbol.content.length() - 1];
+
             cur_symbol.content.push_back(*it);
+
+            if (std::find(possible_tokens->begin(), possible_tokens->end(),
+                          cur_symbol.content) != possible_tokens->end()) {
+                // that's a valid token
+                result.push_back(cur_symbol);
+                state = ParsingState::Idle;
+                cur_symbol.content = "";
+            }
+
+            it++;
 
             break;
         }

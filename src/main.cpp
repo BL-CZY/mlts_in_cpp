@@ -20,6 +20,7 @@ int main() {
     // input_file.close();
 
     while (true) {
+        std::cout << "odyc++ > ";
         std::string input;
         std::getline(std::cin, input);
 
